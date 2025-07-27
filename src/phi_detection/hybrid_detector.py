@@ -42,7 +42,7 @@ class RuleBasedPHIDetector:
                 r'\b\d{1,2}\s+\w+\s+\d{4}\b'          # 25 December 2024
             ],
             'PERSON': [
-                r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b',      # John Smith - TOO BROAD, matches medical terms!
+                r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b',      # John Smith
                 r'\bDr\.\s+[A-Z][a-z]+\b',             # Dr. Smith
                 r'\bMr\.\s+[A-Z][a-z]+\b',             # Mr. Johnson
                 r'\bMs\.\s+[A-Z][a-z]+\b',             # Ms. Anderson
@@ -62,28 +62,10 @@ class RuleBasedPHIDetector:
         }
         
         # Exclusion patterns to reduce false positives
-        # NOTE: This approach doesn't scale - we can't hardcode every medical term!
-        # TODO: Use a medical terminology database or train a classifier to distinguish
-        # between actual person names and medical/clinical terminology.
         self.exclusions = {
             'PERSON': [
-                # Hospital/Medical facility terms
                 'emergency room', 'intensive care', 'medical center', 'general hospital',
-                'operating room', 'emergency department', 'outpatient clinic',
-                
-                # Medical terminology that matches person pattern
-                'blood pressure', 'heart rate', 'medical record', 'contact number',
-                'chief complaint', 'chest pain', 'was admitted', 'vital signs',
-                'medical history', 'physical exam', 'lab results', 'test results',
-                'discharge summary', 'admission note', 'progress note', 'clinical note',
-                'follow up', 'care plan', 'treatment plan', 'medication list',
-                
-                # Company names that aren't people
-                'johnson & johnson', 'smith & wesson',
-                
-                # Address components that match person pattern  
-                'main street', 'oak avenue', 'park drive', 'first avenue',
-                'second street', 'third street', 'state street', 'church street'
+                'blood pressure', 'heart rate', 'johnson & johnson', 'smith & wesson'
             ],
             'LOCATION': [
                 'temperature', 'blood pressure', 'heart rate'
@@ -272,17 +254,9 @@ class HybridPHIDetector:
             logger.info("✅ Rule-based system ready (ClinicalBERT unavailable)")
     
     def detect(self, text: str) -> List[Dict]:
-        """Detect PHI using hybrid approach - RULE-BASED DISABLED due to false positives
-        
-        NOTE: Rule-based regex patterns were too aggressive and incorrectly flagged 
-        medical terms like "Chief complaint", "chest pain", "was admitted" as PERSON entities.
-        ClinicalBERT alone is more accurate for clinical text.
-        
-        TODO: Either fix regex patterns to be more specific OR implement a medical 
-        terminology exclusion system that doesn't require hardcoding every possible term.
-        """
-        # Step 1: Rule-based detection DISABLED - too many false positives
-        rule_detections = []  # Disabled: self.rule_detector.detect(text)
+        """Detect PHI using hybrid approach"""
+        # Step 1: Rule-based detection (fast pass)
+        rule_detections = self.rule_detector.detect(text)
         
         # Step 2: ClinicalBERT detection (if available)
         bert_detections = []
@@ -363,17 +337,9 @@ class HybridPHIDetector:
         # Remove low-confidence detections
         filtered = [d for d in detections if d['confidence'] > 0.3]
         
-        # Filter out obvious false positives
-        cleaned = []
-        for detection in filtered:
-            # Filter out vital signs mislabeled as MRN
-            if detection['label'] == 'MRN' and self._is_vital_signs(detection['text']):
-                continue  # Skip this detection
-            cleaned.append(detection)
-        
         # Remove exact duplicates
         unique_detections = []
-        for detection in cleaned:
+        for detection in filtered:
             is_duplicate = False
             for existing in unique_detections:
                 if (detection['start'] == existing['start'] and 
@@ -387,24 +353,6 @@ class HybridPHIDetector:
         
         return unique_detections
     
-    def _is_vital_signs(self, text: str) -> bool:
-        """Check if text looks like vital signs rather than MRN"""
-        import re
-        # Common vital signs patterns
-        vital_patterns = [
-            r'BP\s+\d+/\d+',     # BP 140/90
-            r'\d+/\d+\s*mmHg',   # 140/90 mmHg  
-            r'HR\s+\d+',         # HR 88
-            r'\d+\s*bpm',        # 88 bpm
-            r'Temp\s+\d+',       # Temp 98.6
-            r'\d+\.\d+°[FC]',    # 98.6°F
-        ]
-        
-        for pattern in vital_patterns:
-            if re.search(pattern, text, re.IGNORECASE):
-                return True
-        return False
-    
     def get_performance_stats(self) -> Dict:
         """Get system performance statistics"""
         return {
@@ -413,46 +361,215 @@ class HybridPHIDetector:
             'system_type': 'hybrid' if self.bert_available else 'rule_based_only'
         }
 
-def main(text: str = None):
-    """PHI detection system - accepts input text"""
-    import sys
-    
-    # Use command line argument if provided, otherwise use default
-    if len(sys.argv) > 1:
-        text = sys.argv[1]
-    elif text is None:
-        # Default sample if no input provided
-        text = """
-    Patient John Smith (DOB: 12/15/1980) was admitted on 2024-07-26. 
-    Contact number: (555) 123-4567. 
-    Email: john.smith@email.com
-    SSN: 123-45-6789
-    Medical Record: MRN-A4567
-    Address: 123 Main Street, Boston, MA
+def detect_phi_from_text(text: str, output_format: str = 'detailed') -> List[Dict]:
     """
+    Detect PHI from input text using hybrid detection system
     
-    logger.info("🔍 Hybrid PHI Detection Demo")
-    logger.info("=" * 40)
+    Args:
+        text: Input text to analyze
+        output_format: 'detailed', 'simple', or 'json'
     
+    Returns:
+        List of detected PHI entities
+    """
     # Initialize detector
     detector = HybridPHIDetector()
     detector.initialize()
     
     # Detect PHI
-    logger.info("📝 Input text:")
-    logger.info(text)
-    
     detections = detector.detect(text)
     
-    logger.info(f"\n🎯 Found {len(detections)} PHI entities:")
-    for i, detection in enumerate(detections, 1):
-        logger.info(f"  {i}. {detection['label']}: '{detection['text']}' "
-                   f"(confidence: {detection['confidence']:.3f}, "
-                   f"method: {detection['method']})")
+    if output_format == 'simple':
+        return [{'text': d['text'], 'type': d['label'], 'confidence': round(d['confidence'], 3)} 
+                for d in detections]
+    elif output_format == 'json':
+        return detections
+    else:  # detailed
+        return detections
+
+def detect_phi_batch(texts: List[str], output_format: str = 'detailed') -> List[List[Dict]]:
+    """
+    Detect PHI from multiple texts using hybrid detection system
     
-    # Performance stats
-    stats = detector.get_performance_stats()
-    logger.info(f"\n📊 System stats: {stats}")
+    Args:
+        texts: List of input texts to analyze
+        output_format: 'detailed', 'simple', or 'json'
+    
+    Returns:
+        List of detection results for each input text
+    """
+    # Initialize detector once for batch processing
+    detector = HybridPHIDetector()
+    detector.initialize()
+    
+    results = []
+    for text in texts:
+        detections = detector.detect(text)
+        
+        if output_format == 'simple':
+            formatted_detections = [{'text': d['text'], 'type': d['label'], 'confidence': round(d['confidence'], 3)} 
+                                   for d in detections]
+        elif output_format == 'json':
+            formatted_detections = detections
+        else:  # detailed
+            formatted_detections = detections
+        
+        results.append(formatted_detections)
+    
+    return results
+
+class PHIDetectionAPI:
+    """
+    API-style interface for PHI detection
+    Allows for persistent detector instance to avoid reloading models
+    """
+    
+    def __init__(self, clinical_bert_path: str = "models/phi_detection/clinicalbert_real/final"):
+        self.detector = HybridPHIDetector(clinical_bert_path)
+        self.initialized = False
+    
+    def initialize(self):
+        """Initialize the detection system"""
+        self.detector.initialize()
+        self.initialized = True
+    
+    def detect(self, text: str, confidence_threshold: float = 0.3) -> List[Dict]:
+        """
+        Detect PHI in text
+        
+        Args:
+            text: Input text to analyze
+            confidence_threshold: Minimum confidence for detections
+        
+        Returns:
+            List of detected PHI entities
+        """
+        if not self.initialized:
+            self.initialize()
+        
+        detections = self.detector.detect(text)
+        
+        # Filter by confidence threshold
+        return [d for d in detections if d['confidence'] >= confidence_threshold]
+    
+    def detect_batch(self, texts: List[str], confidence_threshold: float = 0.3) -> List[List[Dict]]:
+        """
+        Detect PHI in multiple texts
+        
+        Args:
+            texts: List of input texts to analyze
+            confidence_threshold: Minimum confidence for detections
+        
+        Returns:
+            List of detection results for each input text
+        """
+        if not self.initialized:
+            self.initialize()
+        
+        results = []
+        for text in texts:
+            detections = self.detector.detect(text)
+            filtered_detections = [d for d in detections if d['confidence'] >= confidence_threshold]
+            results.append(filtered_detections)
+        
+        return results
+    
+    def get_stats(self) -> Dict:
+        """Get system statistics"""
+        return self.detector.get_performance_stats()
+
+def main():
+    """Command-line interface for hybrid PHI detection system"""
+    import argparse
+    import sys
+    
+    parser = argparse.ArgumentParser(description='Hybrid PHI Detection System')
+    parser.add_argument('--text', '-t', type=str, 
+                       help='Text to analyze for PHI')
+    parser.add_argument('--file', '-f', type=str, 
+                       help='File containing text to analyze')
+    parser.add_argument('--output', '-o', choices=['detailed', 'simple', 'json'], 
+                       default='detailed', help='Output format')
+    parser.add_argument('--demo', action='store_true', 
+                       help='Run with sample clinical text')
+    parser.add_argument('--quiet', '-q', action='store_true', 
+                       help='Suppress initialization messages')
+    
+    args = parser.parse_args()
+    
+    # Configure logging based on quiet flag
+    if args.quiet:
+        logging.getLogger().setLevel(logging.WARNING)
+    
+    # Determine input text
+    if args.demo:
+        input_text = """
+Patient John Smith (DOB: 12/15/1980) was admitted on 2024-07-26. 
+Contact number: (555) 123-4567. 
+Email: john.smith@email.com
+SSN: 123-45-6789
+Medical Record: MRN-A4567
+Address: 123 Main Street, Boston, MA
+"""
+    elif args.text:
+        input_text = args.text
+    elif args.file:
+        try:
+            with open(args.file, 'r', encoding='utf-8') as f:
+                input_text = f.read()
+        except FileNotFoundError:
+            print(f"Error: File '{args.file}' not found.", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error reading file: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # Read from stdin
+        print("Enter text to analyze (Ctrl+D to finish):")
+        input_text = sys.stdin.read().strip()
+        if not input_text:
+            print("Error: No input text provided.", file=sys.stderr)
+            sys.exit(1)
+    
+    if not args.quiet:
+        logger.info("� Hybrid PHI Detection System")
+        logger.info("=" * 40)
+    
+    # Detect PHI
+    detections = detect_phi_from_text(input_text, args.output)
+    
+    # Output results
+    if args.output == 'json':
+        import json
+        print(json.dumps(detections, indent=2))
+    else:
+        if not args.quiet:
+            logger.info("📝 Input text:")
+            logger.info(input_text)
+            logger.info(f"\n🎯 Found {len(detections)} PHI entities:")
+        
+        if detections:
+            for i, detection in enumerate(detections, 1):
+                if args.output == 'simple':
+                    print(f"{i}. {detection['type']}: '{detection['text']}' (confidence: {detection['confidence']})")
+                else:
+                    if args.quiet:
+                        print(f"{detection['label']}: '{detection['text']}' (confidence: {detection['confidence']:.3f}, method: {detection['method']})")
+                    else:
+                        logger.info(f"  {i}. {detection['label']}: '{detection['text']}' "
+                                   f"(confidence: {detection['confidence']:.3f}, "
+                                   f"method: {detection['method']})")
+        else:
+            if args.quiet:
+                print("No PHI detected")
+            else:
+                logger.info("  No PHI entities detected")
+    
+    if not args.quiet:
+        # Performance stats
+        detector = HybridPHIDetector()
+        stats = detector.get_performance_stats()
+        logger.info(f"\n📊 System stats: {stats}")
 
 if __name__ == "__main__":
     main()
