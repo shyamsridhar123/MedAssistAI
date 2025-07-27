@@ -130,3 +130,4 @@ Thumbs.db
 debug_*.py
 test_*.py
 *_debug.*
+.magic/
