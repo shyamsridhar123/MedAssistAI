@@ -131,3 +131,8 @@ debug_*.py
 test_*.py
 *_debug.*
 .magic/
+
+# Compiled executables
+clinical_engine*
+*.exe
+*.bin
