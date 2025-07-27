@@ -1,0 +1,58 @@
+
+CLINICAL DATASET APPLICATION CHECKLIST
+
+n2c2 Datasets (https://n2c2.dbmi.hms.harvard.edu/):
+===============================================
+☐ Register for n2c2 account
+☐ Complete research proposal (see research_proposal.txt)
+☐ Fill out n2c2 application form (see n2c2_application.txt)
+☐ Attach institutional documentation (IRB approval, etc.)
+☐ Sign Data Use Agreement
+☐ Submit application
+☐ Wait for approval (2-4 weeks typical)
+
+i2b2 Datasets (https://www.i2b2.org/NLP/DataSets/):
+================================================
+☐ Register for i2b2 account
+☐ Submit research application (see i2b2_application.txt)
+☐ Provide institutional verification
+☐ Complete required training modules
+☐ Sign Data Use Agreement
+☐ Submit application
+☐ Wait for approval (3-6 weeks typical)
+
+MIMIC-III (https://physionet.org/content/mimiciii/):
+=================================================
+☐ Complete CITI "Data or Specimens Only Research" training
+☐ Apply for PhysioNet credentialed researcher status
+☐ Provide detailed research proposal
+☐ Institutional verification and IRB approval
+☐ Sign Data Use Agreement
+☐ Submit application
+☐ Wait for approval (4-8 weeks typical)
+
+PREPARATION STEPS:
+=================
+☐ Obtain IRB approval from your institution
+☐ Set up secure computing environment
+☐ Establish clinical partnerships if needed
+☐ Prepare institutional documentation
+☐ Review and customize application materials
+
+BEFORE YOU APPLY:
+================
+1. Customize all application templates with your information
+2. Replace [YOUR NAME], [YOUR INSTITUTION], etc. with actual details
+3. Get IRB approval or at least IRB review started
+4. Prepare to demonstrate institutional support
+5. Have a clear timeline and research plan
+
+CONTACT INFORMATION:
+===================
+For questions about applications, contact:
+- n2c2: [contact through website]
+- i2b2: [contact through website]
+- MIMIC: physionet-support@mit.edu
+
+Remember: These applications can take weeks to process.
+Start early and have backup plans with synthetic data!

@@ -1,0 +1,63 @@
+
+I2B2 DATASET APPLICATION
+
+Dataset Requested: De-identification Challenge Dataset
+
+Project Title: MedAssist AI - Privacy-Preserving Clinical Assistant
+
+Research Justification:
+======================
+The i2b2 de-identification dataset is essential for training and validating 
+PHI detection models that meet clinical-grade accuracy requirements. Our 
+research aims to achieve ≥99% recall and ≥95% precision for PHI detection 
+in offline clinical AI systems.
+
+Specific Research Questions:
+===========================
+1. Can quantized transformer models achieve i2b2 benchmark performance on CPU-only hardware?
+2. How does Mojo acceleration impact PHI detection accuracy and speed?
+3. What is the optimal model architecture for offline clinical deployment?
+
+Technical Approach:
+==================
+- Fine-tune ClinicalBERT models using i2b2 annotations
+- Implement 4-bit quantization for resource-constrained deployment
+- Validate against established benchmarks and clinical standards
+- Develop comprehensive evaluation metrics for field deployment
+
+Data Usage Plan:
+===============
+Training Phase:
+- Use annotated clinical notes for supervised learning
+- Implement stratified sampling for balanced training sets
+- Cross-validation using i2b2 recommended protocols
+
+Evaluation Phase:
+- Test against held-out validation sets
+- Compare performance with published baselines
+- Measure accuracy across different note types and specialties
+
+Deployment Phase:
+- Integrate trained models into offline clinical assistant
+- Validate end-to-end PHI removal effectiveness
+- Document compliance with HIPAA Safe Harbor requirements
+
+Expected Timeline:
+=================
+Months 1-2: Data acquisition and preprocessing
+Months 3-4: Model training and optimization
+Months 5-6: Validation and benchmarking
+Months 7-8: Integration and testing
+Months 9-12: Clinical validation and deployment
+
+Publications Plan:
+=================
+- Submit findings to JAMIA, IEEE TBME, or similar venues
+- Present at AMIA, HIMSS, or medical informatics conferences
+- Release open-source tools for clinical AI deployment
+- Document best practices for offline healthcare AI
+
+Principal Investigator: [YOUR NAME]
+Institution: [YOUR INSTITUTION]
+Email: [YOUR EMAIL]
+Date: July 26, 2025

@@ -1,0 +1,4 @@
+# Ignore all data files for privacy and size
+*
+!.gitignore
+!README.md

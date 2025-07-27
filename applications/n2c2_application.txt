@@ -1,0 +1,58 @@
+
+N2C2 DATASET APPLICATION
+
+Dataset Requested: 2014 De-identification Challenge, 2018 Cohort Selection, 2019 Medication Extraction
+
+Research Title: MedAssist AI - Offline Clinical Assistant for Field Diagnosis
+
+Specific Use Cases:
+==================
+
+1. De-identification Challenge (2014):
+   - Train PHI detection models using ground-truth annotations
+   - Validate against F1-score benchmark of 0.9732
+   - Develop robust identification of all 18 HIPAA identifiers
+
+2. Cohort Selection (2018):
+   - Train clinical reasoning components
+   - Develop patient selection criteria modeling
+   - Enhance diagnostic suggestion capabilities
+
+3. Medication Extraction (2019):
+   - Build medication information extraction pipelines
+   - Support clinical decision-making for drug interactions
+   - Enhance summarization with medication context
+
+Data Security Plan:
+==================
+- Download to encrypted local storage only
+- No cloud storage or external transmission
+- Access limited to authorized research team members
+- Audit trail of all data access and processing
+- Secure deletion upon project completion or DUA expiration
+
+Expected Outcomes:
+==================
+- Improved PHI detection accuracy for clinical text
+- Enhanced diagnostic assistance for resource-limited settings
+- Validated offline AI deployment for healthcare applications
+- Open-source contributions to medical NLP community
+
+Team Qualifications:
+===================
+Principal Investigator: [YOUR NAME]
+- Experience: [YOUR BACKGROUND]
+- Institution: [YOUR INSTITUTION]
+- Previous Research: [RELEVANT EXPERIENCE]
+
+Technical Team:
+- AI/ML Engineers with healthcare AI experience
+- Clinical advisors for validation and testing
+- Information security specialists for compliance
+
+Institutional Support:
+=====================
+- IRB approval: [PENDING/APPROVED]
+- Technical infrastructure: Secure computing environment
+- Clinical partnerships: [HEALTHCARE INSTITUTIONS]
+- Compliance oversight: Institutional review board
