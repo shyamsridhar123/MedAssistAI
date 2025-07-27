@@ -254,9 +254,9 @@ class HybridPHIDetector:
             logger.info("✅ Rule-based system ready (ClinicalBERT unavailable)")
     
     def detect(self, text: str) -> List[Dict]:
-        """Detect PHI using hybrid approach"""
-        # Step 1: Rule-based detection (fast pass)
-        rule_detections = self.rule_detector.detect(text)
+        """Detect PHI using hybrid approach - RULE-BASED DISABLED due to false positives"""
+        # Step 1: Rule-based detection DISABLED - too many false positives
+        rule_detections = []  # Disabled: self.rule_detector.detect(text)
         
         # Step 2: ClinicalBERT detection (if available)
         bert_detections = []
@@ -337,9 +337,16 @@ class HybridPHIDetector:
         # Remove low-confidence detections
         filtered = [d for d in detections if d['confidence'] > 0.3]
         
+        # Remove medical vitals false positives
+        medical_filtered = []
+        for detection in filtered:
+            if self._is_medical_vital(detection):
+                continue  # Skip medical vitals
+            medical_filtered.append(detection)
+        
         # Remove exact duplicates
         unique_detections = []
-        for detection in filtered:
+        for detection in medical_filtered:
             is_duplicate = False
             for existing in unique_detections:
                 if (detection['start'] == existing['start'] and 
@@ -352,6 +359,32 @@ class HybridPHIDetector:
                 unique_detections.append(detection)
         
         return unique_detections
+    
+    def _is_medical_vital(self, detection: Dict) -> bool:
+        """Check if detection is actually a medical vital sign (false positive)"""
+        text = detection['text'].lower()
+        
+        # Common vital sign patterns that get misclassified as MRN/other PHI
+        vital_patterns = [
+            r'bp\s*\d+/\d+',           # BP 140/90
+            r'\d+/\d+\s*mmhg',         # 140/90 mmHg
+            r'hr\s*\d+',               # HR 72
+            r'\d+\s*bpm',              # 72 bpm
+            r'temp\s*\d+\.?\d*[f°]?',  # Temp 98.6F
+            r'\d+\.?\d*[f°]\s*temp',   # 98.6F temp
+            r'o2\s*\d+%',              # O2 95%
+            r'\d+%\s*o2',              # 95% O2
+            r'rr\s*\d+',               # RR 16
+            r'\d+\s*breaths',          # 16 breaths
+            r'glucose\s*\d+',          # glucose 120
+            r'\d+\s*mg/dl',            # 120 mg/dl
+        ]
+        
+        for pattern in vital_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return True
+        
+        return False
     
     def get_performance_stats(self) -> Dict:
         """Get system performance statistics"""
@@ -478,98 +511,42 @@ class PHIDetectionAPI:
         """Get system statistics"""
         return self.detector.get_performance_stats()
 
-def main():
-    """Command-line interface for hybrid PHI detection system"""
-    import argparse
-    import sys
+def main(text: str = None):
+    """PHI detection system - accepts input text"""
+    if text is None:
+        # Default sample if no input provided
+        text = """
+    Patient John Smith (DOB: 12/15/1980) was admitted on 2024-07-26. 
+    Contact number: (555) 123-4567. 
+    Email: john.smith@email.com
+    SSN: 123-45-6789
+    Medical Record: MRN-A4567
+    Address: 123 Main Street, Boston, MA
+    """
     
-    parser = argparse.ArgumentParser(description='Hybrid PHI Detection System')
-    parser.add_argument('--text', '-t', type=str, 
-                       help='Text to analyze for PHI')
-    parser.add_argument('--file', '-f', type=str, 
-                       help='File containing text to analyze')
-    parser.add_argument('--output', '-o', choices=['detailed', 'simple', 'json'], 
-                       default='detailed', help='Output format')
-    parser.add_argument('--demo', action='store_true', 
-                       help='Run with sample clinical text')
-    parser.add_argument('--quiet', '-q', action='store_true', 
-                       help='Suppress initialization messages')
+    logger.info("🔍 Hybrid PHI Detection Demo")
+    logger.info("=" * 40)
     
-    args = parser.parse_args()
-    
-    # Configure logging based on quiet flag
-    if args.quiet:
-        logging.getLogger().setLevel(logging.WARNING)
-    
-    # Determine input text
-    if args.demo:
-        input_text = """
-Patient John Smith (DOB: 12/15/1980) was admitted on 2024-07-26. 
-Contact number: (555) 123-4567. 
-Email: john.smith@email.com
-SSN: 123-45-6789
-Medical Record: MRN-A4567
-Address: 123 Main Street, Boston, MA
-"""
-    elif args.text:
-        input_text = args.text
-    elif args.file:
-        try:
-            with open(args.file, 'r', encoding='utf-8') as f:
-                input_text = f.read()
-        except FileNotFoundError:
-            print(f"Error: File '{args.file}' not found.", file=sys.stderr)
-            sys.exit(1)
-        except Exception as e:
-            print(f"Error reading file: {e}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # Read from stdin
-        print("Enter text to analyze (Ctrl+D to finish):")
-        input_text = sys.stdin.read().strip()
-        if not input_text:
-            print("Error: No input text provided.", file=sys.stderr)
-            sys.exit(1)
-    
-    if not args.quiet:
-        logger.info("� Hybrid PHI Detection System")
-        logger.info("=" * 40)
+    # Initialize detector
+    detector = HybridPHIDetector()
+    detector.initialize()
     
     # Detect PHI
-    detections = detect_phi_from_text(input_text, args.output)
+    logger.info("📝 Input text:")
+    logger.info(text)
     
-    # Output results
-    if args.output == 'json':
-        import json
-        print(json.dumps(detections, indent=2))
-    else:
-        if not args.quiet:
-            logger.info("📝 Input text:")
-            logger.info(input_text)
-            logger.info(f"\n🎯 Found {len(detections)} PHI entities:")
-        
-        if detections:
-            for i, detection in enumerate(detections, 1):
-                if args.output == 'simple':
-                    print(f"{i}. {detection['type']}: '{detection['text']}' (confidence: {detection['confidence']})")
-                else:
-                    if args.quiet:
-                        print(f"{detection['label']}: '{detection['text']}' (confidence: {detection['confidence']:.3f}, method: {detection['method']})")
-                    else:
-                        logger.info(f"  {i}. {detection['label']}: '{detection['text']}' "
-                                   f"(confidence: {detection['confidence']:.3f}, "
-                                   f"method: {detection['method']})")
-        else:
-            if args.quiet:
-                print("No PHI detected")
-            else:
-                logger.info("  No PHI entities detected")
+    detections = detector.detect(text)
     
-    if not args.quiet:
-        # Performance stats
-        detector = HybridPHIDetector()
-        stats = detector.get_performance_stats()
-        logger.info(f"\n📊 System stats: {stats}")
+    logger.info(f"\n🎯 Found {len(detections)} PHI entities:")
+    for i, detection in enumerate(detections, 1):
+        logger.info(f"  {i}. {detection['label']}: '{detection['text']}' "
+                   f"(confidence: {detection['confidence']:.3f}, "
+                   f"method: {detection['method']})")
+    
+    # Performance stats
+    stats = detector.get_performance_stats()
+    logger.info(f"\n📊 System stats: {stats}")
 
 if __name__ == "__main__":
     main()
+
