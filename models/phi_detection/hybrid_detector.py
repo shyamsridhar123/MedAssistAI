@@ -250,8 +250,18 @@ class HybridPHIDetector:
         
         if self.bert_available:
             logger.info("✅ Hybrid system ready (Rule-based + ClinicalBERT)")
+            return {
+                "success": True,
+                "bert_available": True,
+                "rule_based_available": True
+            }
         else:
             logger.info("✅ Rule-based system ready (ClinicalBERT unavailable)")
+            return {
+                "success": True,
+                "bert_available": False,
+                "rule_based_available": True
+            }
     
     def detect(self, text: str) -> List[Dict]:
         """Detect PHI using hybrid approach - RULE-BASED DISABLED due to false positives"""
@@ -362,27 +372,72 @@ class HybridPHIDetector:
     
     def _is_medical_vital(self, detection: Dict) -> bool:
         """Check if detection is actually a medical vital sign (false positive)"""
-        text = detection['text'].lower()
+        text = detection['text'].strip()
+        text_lower = text.lower()
         
-        # Common vital sign patterns that get misclassified as MRN/other PHI
-        vital_patterns = [
-            r'bp\s*\d+/\d+',           # BP 140/90
-            r'\d+/\d+\s*mmhg',         # 140/90 mmHg
-            r'hr\s*\d+',               # HR 72
-            r'\d+\s*bpm',              # 72 bpm
-            r'temp\s*\d+\.?\d*[f°]?',  # Temp 98.6F
-            r'\d+\.?\d*[f°]\s*temp',   # 98.6F temp
-            r'o2\s*\d+%',              # O2 95%
-            r'\d+%\s*o2',              # 95% O2
-            r'rr\s*\d+',               # RR 16
-            r'\d+\s*breaths',          # 16 breaths
-            r'glucose\s*\d+',          # glucose 120
-            r'\d+\s*mg/dl',            # 120 mg/dl
+        # Blood pressure patterns (most common false positive)
+        bp_patterns = [
+            r'^\d{2,3}/\d{2,3}[,\.]?$',    # 140/90, or 140/90.
+            r'^bp\s*:?\s*\d{2,3}/\d{2,3}',  # BP: 140/90
+            r'\d{2,3}/\d{2,3}\s*mmhg',      # 140/90 mmHg
+            r'blood\s*pressure\s*:?\s*\d{2,3}/\d{2,3}',  # Blood pressure: 140/90
         ]
         
-        for pattern in vital_patterns:
+        # Heart rate patterns
+        hr_patterns = [
+            r'^\d{2,3}[,\.]?$',            # 88, or 88. (when labeled as ID/SSN)
+            r'^hr\s*:?\s*\d{2,3}',         # HR: 88
+            r'\d{2,3}\s*bpm',              # 88 bpm
+            r'heart\s*rate\s*:?\s*\d{2,3}', # Heart rate: 88
+        ]
+        
+        # Temperature patterns
+        temp_patterns = [
+            r'^\d{2,3}\.?\d*[f°]?[,\.]?$', # 98.6F, or 99.
+            r'^temp\s*:?\s*\d{2,3}',       # Temp: 98.6
+            r'\d{2,3}\.?\d*[f°]\s*temp',   # 98.6F temp
+            r'temperature\s*:?\s*\d{2,3}', # Temperature: 98.6
+        ]
+        
+        # Oxygen saturation patterns
+        o2_patterns = [
+            r'^\d{2,3}%[,\.]?$',           # 95%, or 95%.
+            r'^o2\s*:?\s*\d{2,3}%?',       # O2: 95%
+            r'\d{2,3}%\s*o2',              # 95% O2
+            r'oxygen\s*:?\s*\d{2,3}%?',    # Oxygen: 95%
+        ]
+        
+        # Respiratory rate patterns
+        rr_patterns = [
+            r'^rr\s*:?\s*\d{1,2}',         # RR: 16
+            r'\d{1,2}\s*breaths',          # 16 breaths
+            r'respiratory\s*:?\s*\d{1,2}', # Respiratory: 16
+        ]
+        
+        # Lab values patterns
+        lab_patterns = [
+            r'glucose\s*:?\s*\d{2,4}',     # glucose: 120
+            r'\d{2,4}\s*mg/dl',            # 120 mg/dl
+            r'creatinine\s*:?\s*\d+\.?\d*', # creatinine: 1.2
+            r'bun\s*:?\s*\d{1,3}',         # BUN: 20
+        ]
+        
+        # Check all patterns
+        all_patterns = bp_patterns + hr_patterns + temp_patterns + o2_patterns + rr_patterns + lab_patterns
+        
+        for pattern in all_patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 return True
+        
+        # Special check for the specific case: "140/90," being classified as SSN
+        if detection['label'] == 'SSN' and re.match(r'^\d{2,3}/\d{2,3}[,\.]?$', text):
+            return True
+            
+        # Check if it appears in a vitals context
+        # Look for context words nearby (this is a more advanced check)
+        context_words = ['vitals', 'vital signs', 'bp', 'hr', 'temp', 'o2', 'rr', 'sat', 'mmhg', 'bpm', 'fever']
+        # This would require access to the original text and position, which we don't have here
+        # But the patterns above should catch most cases
         
         return False
     
